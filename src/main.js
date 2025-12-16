@@ -10,13 +10,18 @@ function calculateSimpleRevenue(purchase, product) {
     console.error('Ошибка: товар не передан в calculateSimpleRevenue');
     return 0;
   }
-  if (typeof product.sale_price !== 'number') {
-    console.error('Ошибка: у товара нет корректного sale_price', product);
+
+  // Проверяем наличие и тип sale_price
+  if (typeof product.sale_price !== 'number' || isNaN(product.sale_price)) {
+    console.error(
+      'Ошибка: у товара нет корректного sale_price. Товар:', 
+      product
+    );
     return 0;
   }
 
-  const discount = 1 - (purchase.discount / 100);
-  return product.sale_price * purchase.quantity * discount;
+  const discountFactor = 1 - (purchase.discount / 100);
+  return product.sale_price * purchase.quantity * discountFactor;
 }
 
 /**
