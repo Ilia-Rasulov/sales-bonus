@@ -81,31 +81,27 @@ function analyzeSalesData(data, options) {
   let calculateBonus = calculateBonusByProfit;
 
   if (options != null) {
-    // Проверяем, что options — это объект (не null и не примитив)
     if (typeof options !== 'object' || options === null) {
       throw new Error('Options must be a non-null object');
     }
 
     const { profitMargin: optProfitMargin, calculateRevenue: optCalcRev, calculateBonus: optCalcBonus } = options;
 
-    // Валидация profitMargin
-    if (optProfitMargin !== undefined) { // явно передано
+    if (optProfitMargin !== undefined) {
       if (typeof optProfitMargin !== 'number' || optProfitMargin < 0 || optProfitMargin > 1) {
         throw new Error('profitMargin must be a number between 0 and 1');
       }
       profitMargin = optProfitMargin;
     }
 
-    // Валидация calculateRevenue
-    if (optCalcRev !== undefined) { // явно передано
+    if (optCalcRev !== undefined) {
       if (typeof optCalcRev !== 'function') {
         throw new Error('calculateRevenue must be a function');
       }
       calculateRevenue = optCalcRev;
     }
 
-    // Валидация calculateBonus
-    if (optCalcBonus !== undefined) { // явно передано
+    if (optCalcBonus !== undefined) {
       if (typeof optCalcBonus !== 'function') {
         throw new Error('calculateBonus must be a function');
       }
@@ -169,6 +165,7 @@ data.purchase_records.forEach(record => {
     // Округление итоговой выручки продавца
     seller.revenue = Math.round((seller.revenue + recordRevenue) * 100) / 100;
   });
+
 
   // @TODO: Сортировка продавцов по прибыли
   // 6. Сортировка продавцов по прибыли (убывание)
