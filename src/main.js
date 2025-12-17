@@ -63,7 +63,6 @@ function analyzeSalesData(data, options) {
     throw new Error('Data must be a valid object');
   }
 
-  // Обязательные массивы
   const requiredArrays = ['purchase_records', 'products', 'sellers'];
   for (const key of requiredArrays) {
     if (!Array.isArray(data[key])) {
@@ -82,14 +81,15 @@ function analyzeSalesData(data, options) {
   let calculateBonus = calculateBonusByProfit;
 
   if (options != null) {
+    // Проверяем, что options — это объект (не null и не примитив)
     if (typeof options !== 'object' || options === null) {
-      throw new Error('Options must be a non-null object or undefined');
+      throw new Error('Options must be a non-null object');
     }
 
     const { profitMargin: optProfitMargin, calculateRevenue: optCalcRev, calculateBonus: optCalcBonus } = options;
 
     // Валидация profitMargin
-    if (optProfitMargin != null) {
+    if (optProfitMargin !== undefined) { // явно передано
       if (typeof optProfitMargin !== 'number' || optProfitMargin < 0 || optProfitMargin > 1) {
         throw new Error('profitMargin must be a number between 0 and 1');
       }
@@ -97,7 +97,7 @@ function analyzeSalesData(data, options) {
     }
 
     // Валидация calculateRevenue
-    if (optCalcRev != null) {
+    if (optCalcRev !== undefined) { // явно передано
       if (typeof optCalcRev !== 'function') {
         throw new Error('calculateRevenue must be a function');
       }
@@ -105,7 +105,7 @@ function analyzeSalesData(data, options) {
     }
 
     // Валидация calculateBonus
-    if (optCalcBonus != null) {
+    if (optCalcBonus !== undefined) { // явно передано
       if (typeof optCalcBonus !== 'function') {
         throw new Error('calculateBonus must be a function');
       }
@@ -150,11 +150,11 @@ data.purchase_records.forEach(record => {
         return;
       }
 
-      // Расчёт выручки по позиции (с округлением до 2 знаков на каждом шаге)
+      // Расчёт выручки по позиции с округлением
       const itemRevenue = Math.round(calculateRevenue(item, product) * 100) / 100;
       recordRevenue = Math.round((recordRevenue + itemRevenue) * 100) / 100;
 
-      // Себестоимость (с округлением)
+      // Себестоимость с округлением
       const cost = Math.round(product.purchase_price * item.quantity * 100) / 100;
       const profit = Math.round((itemRevenue - cost) * 100) / 100;
 
@@ -180,7 +180,7 @@ data.purchase_records.forEach(record => {
   sellerStats.forEach((seller, index) => {
     // Бонус с округлением до 2 знаков
     seller.bonus = Math.round(calculateBonus(index, totalSellers, seller) * 100) / 100;
-    
+
     seller.top_products = Object.entries(seller.products_sold)
       .map(([sku, quantity]) => ({ sku, quantity }))
       .sort((a, b) => b.quantity - a.quantity)
