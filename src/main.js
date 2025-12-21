@@ -4,9 +4,9 @@
  * @param _product карточка товара
  * @returns {number}
  */
-function calculateSimpleRevenue(purchase, product) {
+function calculateSimpleRevenue(purchase, _product) {
   // Защищаемся от отсутствующего товара
-   if (!product) {
+  if (!_product) {
     console.error('Ошибка: товар не передан в calculateSimpleRevenue');
     return 0;
   }
@@ -14,10 +14,10 @@ function calculateSimpleRevenue(purchase, product) {
   // Берём цену из purchase, если указана, иначе из product
   const salePrice = typeof purchase.sale_price === 'number'
     ? purchase.sale_price
-    : (typeof product.sale_price === 'number' ? product.sale_price : 0);
+    : (typeof _product.sale_price === 'number' ? _product.sale_price : 0);
 
   if (salePrice < 0 || isNaN(salePrice)) {
-    console.error('Ошибка: некорректный sale_price', { salePrice, purchase, product });
+    console.error('Ошибка: некорректный sale_price', { salePrice, purchase, _product });
     return 0;
   }
 
@@ -76,38 +76,49 @@ function analyzeSalesData(data, options) {
    // @TODO: Подготовка промежуточных данных для сбора статистики
    //2. Валидация опций
 
-  let profitMargin = 0.2;
-  let calculateRevenue = calculateSimpleRevenue;
-  let calculateBonus = calculateBonusByProfit;
+  const DEFAULT_PROFIT_MARGIN = 0.2;
+  const DEFAULT_REVENUE_FN = calculateSimpleRevenue;
+  const DEFAULT_BONUS_FN = calculateBonusByProfit;
 
+  //  Извлекаем и валидируем опции, если они есть
   if (options != null) {
-    if (typeof options !== 'object' || options === null) {
-      throw new Error('Options must be a non-null object');
+    // Проверяем, что options — объект
+    if (typeof options !== 'object') {
+      throw new Error('Options must be an object or null/undefined');
     }
 
-    const { profitMargin: optProfitMargin, calculateRevenue: optCalcRev, calculateBonus: optCalcBonus } = options;
-
-    if (optProfitMargin !== undefined) {
-      if (typeof optProfitMargin !== 'number' || optProfitMargin < 0 || optProfitMargin > 1) {
+    // profitMargin
+    if (options.profitMargin !== undefined) {
+      if (typeof options.profitMargin !== 'number' || options.profitMargin < 0 || options.profitMargin > 1) {
         throw new Error('profitMargin must be a number between 0 and 1');
       }
-      profitMargin = optProfitMargin;
+      // Переопределяем константу через новое объявление (в своей области видимости)
+      const profitMargin = options.profitMargin;
     }
 
-    if (optCalcRev !== undefined) {
-      if (typeof optCalcRev !== 'function') {
+    // calculateRevenue
+    if (options.calculateRevenue !== undefined) {
+      if (typeof options.calculateRevenue !== 'function') {
         throw new Error('calculateRevenue must be a function');
       }
-      calculateRevenue = optCalcRev;
+      const calculateRevenue = options.calculateRevenue;
     }
 
-    if (optCalcBonus !== undefined) {
-      if (typeof optCalcBonus !== 'function') {
+    // calculateBonus
+    if (options.calculateBonus !== undefined) {
+      if (typeof options.calculateBonus !== 'function') {
         throw new Error('calculateBonus must be a function');
       }
-      calculateBonus = optCalcBonus;
+      const calculateBonus = options.calculateBonus;
     }
   }
+
+  //  Используем либо дефолтные, либо переопределённые значения
+  // (в реальной логике функции — обращаемся к const, определённым выше или по умолчанию)
+  
+  const profitMargin = options?.profitMargin ?? DEFAULT_PROFIT_MARGIN;
+  const calculateRevenue = options?.calculateRevenue ?? DEFAULT_REVENUE_FN;
+  const calculateBonus = options?.calculateBonus ?? DEFAULT_BONUS_FN;
 
  
   // @TODO: Подготовка промежуточных данных для сбора статистики
@@ -138,7 +149,6 @@ data.purchase_records.forEach(record => {
 
     seller.sales_count += 1;
 
-    let recordRevenue = 0;
     record.items.forEach(item => {
       const product = productIndex[item.sku];
       if (!product) {
@@ -146,24 +156,24 @@ data.purchase_records.forEach(record => {
         return;
       }
 
-      // Расчёт выручки по позиции с округлением
-      const itemRevenue = Math.round(calculateRevenue(item, product) * 100) / 100;
-      recordRevenue = Math.round((recordRevenue + itemRevenue) * 100) / 100;
+      // Расчёт выручки по позиции
+      const revenue = calculateRevenue(item, product);
+      
+      // Себестоимость
+      const cost = product.purchase_price * item.quantity;
+      
+      // Прибыль
+      const profit = revenue - cost;
 
-      // Себестоимость с округлением
-      const cost = Math.round(product.purchase_price * item.quantity * 100) / 100;
-      const profit = Math.round((itemRevenue - cost) * 100) / 100;
-
-      seller.profit = Math.round((seller.profit + profit) * 100) / 100;
+      // Округление до 2 знаков после запятой
+      seller.revenue = parseFloat((seller.revenue + revenue).toFixed(2));
+      seller.profit = parseFloat((seller.profit + profit).toFixed(2));
 
       if (!seller.products_sold[item.sku]) {
         seller.products_sold[item.sku] = 0;
       }
       seller.products_sold[item.sku] += item.quantity;
     });
-
-    // Округление итоговой выручки продавца
-    seller.revenue = Math.round((seller.revenue + recordRevenue) * 100) / 100;
   });
 
 
@@ -176,7 +186,8 @@ data.purchase_records.forEach(record => {
    const totalSellers = sellerStats.length;
   sellerStats.forEach((seller, index) => {
     // Бонус с округлением до 2 знаков
-    seller.bonus = Math.round(calculateBonus(index, totalSellers, seller) * 100) / 100;
+    seller.bonus = parseFloat(calculateBonus(index, totalSellers, seller).toFixed(2));
+
 
     seller.top_products = Object.entries(seller.products_sold)
       .map(([sku, quantity]) => ({ sku, quantity }))
@@ -190,10 +201,10 @@ data.purchase_records.forEach(record => {
   return sellerStats.map(seller => ({
     seller_id: seller.seller_id,
     name: seller.name,
-    revenue: Math.round(seller.revenue * 100) / 100,
-    profit: Math.round(seller.profit * 100) / 100,
+    revenue: parseFloat(seller.revenue.toFixed(2)),
+    profit: parseFloat(seller.profit.toFixed(2)),
     sales_count: seller.sales_count,
     top_products: seller.top_products,
-    bonus: Math.round(seller.bonus * 100) / 100
+    bonus: parseFloat(seller.bonus.toFixed(2))
   }));
 }
