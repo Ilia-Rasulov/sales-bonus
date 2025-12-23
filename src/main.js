@@ -92,13 +92,13 @@ function analyzeSalesData(data, options) {
 
         if (seller){
             seller.sales_count += 1;
-            seller.revenue += record.total_amount;
+            seller.revenue += record.total_amount - record.total_discount;;
         }
         record.items.forEach(item => {
-            const product = productIndex[item.sku];// товар
+            const product = productIndex[item.sku];// Проходимся по товарам
 
             
-            const cost = product.purchase_price * item.quantity;// Посчитать себестоимость
+            const cost = product.purchase_price * item.quantity;// Корректный расчет себестоимости
             const revenue = calculateRevenue(item, product);
             const profit = revenue - cost;
             seller.profit += profit;
